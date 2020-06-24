@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VoiceBotInterlocutors.InterlocutorsGenerator;
@@ -22,7 +21,12 @@ namespace VoiceBotInterlocutors.Controllers
         [HttpPost]
         public Task Generate([FromBody] GenerateRequest request)
         {
-            return _interlocutorsGenerator.Generate(request.CampaignId, request.GroupId, request.InterlocutorsCount);
+            return _interlocutorsGenerator.Generate(request.Url, 
+                                                    request.AccessToken, 
+                                                    request.CampaignId, 
+                                                    request.GroupId, 
+                                                    request.InterlocutorsCount, 
+                                                    request.HaveConstSentences);
         }
     }
 }

@@ -2,56 +2,43 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Extensions;
 using NodaTime;
 using RestSharp;
-using RestSharp.Authenticators;
 using VoiceBotInterlocutors.Models;
 
 namespace VoiceBotInterlocutors.InterlocutorsGenerator
 {
     public interface IInterlocutorsGenerator
     {
-        Task Generate(Guid campaignId, Guid groupId, int interlocutorsCount);
+        Task Generate(string url, string accessToken, Guid campaignId, Guid groupId, int interlocutorsCount, bool haveConstSentences);
     }
-    
+
     public class InterlocutorsGenerator : IInterlocutorsGenerator
     {
-        private readonly RestClient _restClient;
         private readonly Random _random = new Random();
-        public InterlocutorsGenerator(GeneratorConfiguration configuration)
+        private readonly RestClient _restClient;
+
+        public InterlocutorsGenerator()
         {
-            var uri = UriHelper.BuildAbsolute(Uri.UriSchemeHttp, new HostString(configuration.Host, configuration.Port));
-
-            _restClient = new RestClient(uri);
-
-            var request = new RestRequest($"/connect/token", Method.POST);
-
-            request.AddHeader("Content-Type", "application/x-www-form-urlencoded");
-            request.AddParameter("username", configuration.User);
-            request.AddParameter("password", configuration.Password);
-            request.AddParameter("grant_type", "password");
-            request.AddParameter("client_id", "swagger");
-
-            var response = _restClient.Execute<Credentials>(request);
-            _restClient.AddDefaultHeader("Authorization", $"Bearer {response.Data.Access_Token}");
+            _restClient = new RestClient();
         }
 
-        public async Task Generate(Guid campaignId, Guid groupId, int interlocutorsCount)
+        public async Task Generate(string url, string accessToken, Guid campaignId, Guid groupId, int interlocutorsCount, bool haveConstSentences)
         {
+            _restClient.BaseUrl = new Uri(url);
+
             var request = new RestRequest($"/api/campaigns/{campaignId}/interlocutors", Method.POST);
-
-            var interlocutors = GetInterlocutors(groupId, interlocutorsCount);
-
+            var interlocutors = GetInterlocutors(groupId, interlocutorsCount, haveConstSentences);
+            
             request.AddJsonBody(interlocutors);
+            request.AddHeader("Authorization", $"Bearer {accessToken}");
 
             var response = await _restClient.ExecutePostAsync(request);
 
             await Console.Out.WriteLineAsync($"{response.StatusCode}, {response.ErrorMessage}");
         }
 
-        private InterlocutorsDto GetInterlocutors(Guid groupId, int interlocutorsCount)
+        private InterlocutorsDto GetInterlocutors(Guid groupId, int interlocutorsCount, bool haveConstSentences)
         {
             var interlocutors = new InterlocutorsDto
             {
@@ -61,61 +48,43 @@ namespace VoiceBotInterlocutors.InterlocutorsGenerator
 
             for (var i = 1; i <= interlocutorsCount; i++)
             {
-                if (i < 10)
+                interlocutors.Interlocutors.Add(new InterlocutorsDto.InterlocutorDto
                 {
-                    interlocutors.Interlocutors.Add(new InterlocutorsDto.InterlocutorDto
+                    PhoneNumber = RandomPhoneNumber(i),
+                    Parameters = new Dictionary<string, string>
                     {
-                        PhoneNumber = $"00000000{i}",
-                        Parameters = new Dictionary<string, string>
-                        {
-                            {"Termin Wizyty", RandomDate()},
-                            {"Godzina Wizyty", RandomTime()},
-                            {"Numer Rejestracyjny", $"STA 0000{i}"}
-                        }
-                    });
-                }
-                else if (i < 100)
-                {
-                    interlocutors.Interlocutors.Add(new InterlocutorsDto.InterlocutorDto
-                    {
-                        PhoneNumber = $"0000000{i}",
-                        Parameters = new Dictionary<string, string>
-                        {
-                            {"Termin Wizyty", RandomDate()},
-                            {"Godzina Wizyty", RandomTime()},
-                            {"Numer Rejestracyjny", $"STA 000{i}"}
-                        }
-                    });
-                }
-                else if (i < 1000)
-                {
-                    interlocutors.Interlocutors.Add(new InterlocutorsDto.InterlocutorDto
-                    {
-                        PhoneNumber = $"000000{i}",
-                        Parameters = new Dictionary<string, string>
-                        {
-                            {"Termin Wizyty", RandomDate()},
-                            {"Godzina Wizyty", RandomTime()},
-                            {"Numer Rejestracyjny", $"STA 00{i}"}
-                        }
-                    });
-                }
+                        {"Termin Wizyty", haveConstSentences ? "02.04.2020" : RandomDate()},
+                        {"Godzina Wizyty", haveConstSentences ? "13:30" : RandomTime()},
+                        {"Numer Rejestracyjny", haveConstSentences ? "STA 00001": RandomRegistrationNumber(i)}
+                    }
+                });
             }
 
             return interlocutors;
         }
 
+        private string RandomPhoneNumber(int count)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0:000000000}", count);
+        }
+
         private string RandomDate()
         {
-            var newDate = LocalDate.FromYearMonthWeekAndDay(2020, _random.Next(1, 12), _random.Next(1, 5), (IsoDayOfWeek) _random.Next(1, 7)).ToString("dd.MM.yyyy", default);
+            var newDate = LocalDate.FromYearMonthWeekAndDay(2020, _random.Next(1, 12), _random.Next(1, 5), (IsoDayOfWeek) _random.Next(1, 7))
+                                   .ToString("dd.MM.yyyy", default);
             return newDate;
         }
 
         private string RandomTime()
         {
-            var time = LocalTime.FromHourMinuteSecondTick(_random.Next(1, 23), _random.Next(1, 59), 0, 0).ToString("H:mm", default);
+            var time = LocalTime.FromHourMinuteSecondTick(_random.Next(1, 23), _random.Next(1, 59), 0, 0)
+                                .ToString("H:mm", default);
             return time;
         }
+        
+        private string RandomRegistrationNumber(int count)
+        {
+            return string.Format(CultureInfo.InvariantCulture,"STA" + "{0:00000}", count);
+        }
     }
-
 }
