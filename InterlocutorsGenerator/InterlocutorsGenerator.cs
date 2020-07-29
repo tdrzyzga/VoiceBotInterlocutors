@@ -84,7 +84,7 @@ namespace VoiceBotInterlocutors.InterlocutorsGenerator
         
         private string RandomRegistrationNumber(int count)
         {
-            return string.Format(CultureInfo.InvariantCulture,"STA" + "{0:00000}", count);
+            return string.Format(CultureInfo.InvariantCulture,"STA" + "{0}", _random.Next(1000, 9000));
         }
     }
 }
