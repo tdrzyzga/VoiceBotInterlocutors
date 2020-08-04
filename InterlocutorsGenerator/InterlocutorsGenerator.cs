@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using NodaTime;
 using RestSharp;
@@ -84,7 +85,15 @@ namespace VoiceBotInterlocutors.InterlocutorsGenerator
         
         private string RandomRegistrationNumber(int count)
         {
-            return string.Format(CultureInfo.InvariantCulture,"STA" + "{0}", _random.Next(1000, 9000));
+            return string.Format(CultureInfo.InvariantCulture, "{0}{1}", RandomString(3), _random.Next(1000, 9000));
+        }
+        
+        private string RandomString(int length)
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            
+            return new string(Enumerable.Repeat(chars, length)
+                                        .Select(s => s[_random.Next(s.Length)]).ToArray());
         }
     }
 }
